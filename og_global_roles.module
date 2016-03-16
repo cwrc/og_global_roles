@@ -450,3 +450,20 @@ function _og_global_roles_get_global_role($og_role, $gid = null) {
     return user_role_load((int) array_shift($result));
   }
 }
+
+/**
+ * Function to filter out global "og" roles from array of $name => $label pairs.
+ */
+function _og_global_roles_filter_select(&$options) {
+  // Gets all roles that need to be removed.
+  $query = db_select('role', 'u')
+    ->fields('u', array('rid', 'name'))
+    ->condition('u.name', array_keys($options), 'IN');
+  $query->innerJoin(OG_GLOBAL_ROLES_TABLE, 'g', 'u.rid = g.global_rid');
+  $remove = $query->execute()->fetchAllAssoc('name');
+
+  // Remove options from list.
+  foreach ($remove as $name => $value) {
+    unset($options[$name]);
+  }
+}
