@@ -372,8 +372,22 @@ function og_global_roles_entity_delete($entity, $type) {
 function og_global_roles_form_alter(&$form, &$form_state, $form_id) {
   switch ($form_id) {
     case 'user_admin_permissions':
+      _og_global_roles_filter_by_rid($form['role_names']);
+      _og_global_roles_filter_by_rid($form['role_names']['#value']);
+      _og_global_roles_filter_by_rid($form['checkboxes']);
       break;
     case 'user_admin_roles':
+      _og_global_roles_filter_by_rid($form['roles']);
+      break;
+    case 'islandora_workflow_rest_reports_form':
+      _og_global_roles_filter_select($form['workflow_reports_fs']['workflow_permissions_fs']['edit_roles']['#options']);
+      _og_global_roles_filter_select($form['workflow_reports_fs']['workflow_permissions_fs']['view_roles']['#options']);
+      break;
+    case 'islandora_solr_admin_settings_result_fields':
+    case 'islandora_solr_admin_settings_sort_fields':
+    case 'islandora_solr_admin_settings_facet_fields':
+    case 'islandora_solr_admin_settings_search_fields':
+      _og_global_roles_filter_by_rid($form['options']['permissions_fieldset']['permissions']['#options']);
       break;
   }
 }
@@ -465,5 +479,19 @@ function _og_global_roles_filter_select(&$options) {
   // Remove options from list.
   foreach ($remove as $name => $value) {
     unset($options[$name]);
+  }
+}
+
+function _og_global_roles_filter_by_rid(&$options) {
+  // Gets all roles that need to be removed.
+  $query = db_select('role', 'u')
+    ->fields('u', array('rid', 'name'))
+    ->condition('u.rid', array_keys($options), 'IN');
+  $query->innerJoin(OG_GLOBAL_ROLES_TABLE, 'g', 'u.rid = g.global_rid');
+  $remove = $query->execute()->fetchAllAssoc('rid');
+
+  // Remove options from list.
+  foreach ($remove as $rid => $value) {
+    unset($options[$rid]);
   }
 }
