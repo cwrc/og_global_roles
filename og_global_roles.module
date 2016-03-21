@@ -389,6 +389,22 @@ function og_global_roles_form_alter(&$form, &$form_state, $form_id) {
     case 'islandora_solr_admin_settings_search_fields':
       _og_global_roles_filter_by_rid($form['options']['permissions_fieldset']['permissions']['#options']);
       break;
+    case 'user_profile_form':
+      _og_global_roles_filter_by_rid($form['account']['roles']['#options']);
+      break;
+    case 'views_exposed_form':
+      if (isset($form['rid'])) {
+        _og_global_roles_filter_by_rid($form['rid']['#options']);
+      }
+      break;
+    case 'views_form_admin_views_user_system_1':
+      if (isset($form['add_roles'])) {
+        _og_global_roles_filter_by_rid($form['add_roles']['#options']);
+      }
+      if (isset($form['remove_roles'])) {
+        _og_global_roles_filter_by_rid($form['remove_roles']['#options']);
+      }
+      break;
   }
 }
 
@@ -442,6 +458,19 @@ function og_global_roles_delete_global_role($og_role, $gid = NULL) {
 }
 
 /**
+ * Implementation of hook_views_pre_render().
+ *
+ * Filter roles from admin view for people tab (admin views only).
+ */
+function og_global_roles_views_pre_render(&$view) {
+  if ($view->name == 'admin_views_user' && isset($view->field['rid']->items)) {
+    foreach ($view->field['rid']->items as &$item) {
+      _og_global_roles_filter_by_rid($item);
+    }
+  }
+}
+
+/**
  * Helper function that looks up a global role based on a group role.
  */
 function _og_global_roles_get_global_role($og_role, $gid = null) {
@@ -482,6 +511,9 @@ function _og_global_roles_filter_select(&$options) {
   }
 }
 
+/**
+ * Helper function that filters an array keyed by role id.
+ */
 function _og_global_roles_filter_by_rid(&$options) {
   // Gets all roles that need to be removed.
   $query = db_select('role', 'u')
