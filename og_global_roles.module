@@ -103,7 +103,7 @@ function og_global_roles_og_membership_insert(OgMembership $og_membership) {
     if (count($og_roles) > 0) {
       // grant member and revoke non-member
       og_global_roles_og_role_grant($group_type, $gid, $uid, $member_rid);
-      og_global_roles_og_role_revoke($group_type, $gid, $uid, $non_member_rid);
+      og_global_roles_og_role_revoke($group_type, $gid, $uid, $non_member_rid, true);
     }
 
   }
@@ -143,11 +143,11 @@ function og_global_roles_og_membership_insert(OgMembership $og_membership) {
     if ($wrapper->state->value() == OG_STATE_ACTIVE) {
       // grant member and revoke non-member
       og_global_roles_og_role_grant($group_type, $gid, $uid, $member_rid);
-      og_global_roles_og_role_revoke($group_type, $gid, $uid, $non_member_rid);
+      og_global_roles_og_role_revoke($group_type, $gid, $uid, $non_member_rid, true);
     } else {
       // grant non-member and revoke member
       og_global_roles_og_role_grant($group_type, $gid, $uid, $non_member_rid);
-      og_global_roles_og_role_revoke($group_type, $gid, $uid, $member_rid);
+      og_global_roles_og_role_revoke($group_type, $gid, $uid, $member_rid, true);
 
       // revoke all other roles as well
       foreach ($og_roles as $rid => $name) {
@@ -187,7 +187,7 @@ function og_global_roles_og_membership_delete(OgMembership $og_membership) {
     if ($name == 'non-member') {
       og_global_roles_og_role_grant($group_type, $gid, $uid, $non_member_rid);
     } else {
-      og_global_roles_og_role_revoke($group_type, $gid, $uid, $rid);
+      og_global_roles_og_role_revoke($group_type, $gid, $uid, $rid, true);
     }
   }
 }
@@ -215,13 +215,19 @@ function og_global_roles_og_role_grant($entity_type, $gid, $uid, $rid) {
  *
  * Revokes the appropriate global role as well.
  */
-function og_global_roles_og_role_revoke($entity_type, $gid, $uid, $rid) {
+function og_global_roles_og_role_revoke($entity_type, $gid, $uid, $rid, $force = false) {
   if ($global_role = _og_global_roles_get_global_role(og_role_load($rid), $gid)) {
-    // user_multiple_role_edit(array($uid), 'remove_role', $global_role->rid);
-    db_delete('users_roles')
-      ->condition('uid', $uid)
-      ->condition('rid', $global_role->rid)
-      ->execute();
+    $og_role = og_role_load($rid);
+
+    // Default to not removing the member role, the og module revokes it for
+    // seemingly arbitrary actions like updating the membership while it is
+    // still active...
+    if ($og_role->name != 'member' || $force) {
+      db_delete('users_roles')
+        ->condition('uid', $uid)
+        ->condition('rid', $global_role->rid)
+        ->execute();
+    }
   }
 }
 
