@@ -396,6 +396,7 @@ function og_global_roles_form_alter(&$form, &$form_state, $form_id) {
       _og_global_roles_filter_by_rid($form['options']['permissions_fieldset']['permissions']['#options']);
       break;
     case 'user_profile_form':
+    case 'user_register_form':
       _og_global_roles_filter_by_rid($form['account']['roles']['#options']);
       break;
     case 'views_exposed_form':
