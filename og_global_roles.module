@@ -5,7 +5,11 @@
  * Hooks and helper functions for the og_global_roles module.
  */
 
+/* Constants. */
+
 define('OG_GLOBAL_ROLES_TABLE', 'og_global_role_map');
+
+/* Hooks. */
 
 /**
  * Implements hook_og_role_insert().
@@ -425,6 +429,20 @@ function og_global_roles_form_alter(&$form, &$form_state, $form_id) {
 }
 
 /**
+ * Implements hook_views_pre_render().
+ */
+function og_global_roles_views_pre_render(&$view) {
+  // Filter roles from admin view for people tab (admin views only).
+  if ($view->name == 'admin_views_user' && isset($view->field['rid']->items)) {
+    foreach ($view->field['rid']->items as &$item) {
+      _og_global_roles_filter_by_rid($item);
+    }
+  }
+}
+
+/* Helper functions. */
+
+/**
  * Creates a new global role for the given og role.
  *
  * @param object $og_role
@@ -471,18 +489,6 @@ function og_global_roles_delete_global_role($og_role, $gid = NULL) {
       ->condition('og_rid', $og_role->rid)
       ->condition('global_rid', $role->rid)
       ->execute();
-  }
-}
-
-/**
- * Implements hook_views_pre_render().
- */
-function og_global_roles_views_pre_render(&$view) {
-  // Filter roles from admin view for people tab (admin views only).
-  if ($view->name == 'admin_views_user' && isset($view->field['rid']->items)) {
-    foreach ($view->field['rid']->items as &$item) {
-      _og_global_roles_filter_by_rid($item);
-    }
   }
 }
 
