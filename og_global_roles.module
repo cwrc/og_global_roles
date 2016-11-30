@@ -1,22 +1,25 @@
 <?php
 
+/**
+ * @file
+ * Hooks and helper functions for the og_global_roles module.
+ */
+
 define('OG_GLOBAL_ROLES_TABLE', 'og_global_role_map');
 
 /**
- * Implements hook_og_role_insert()
- *
- * This needs to create the corresponding global role(s) for this role, there
- * are two scenarios:
- *
- * 1. This is a new "default" og role (gid is 0), which means it will apply to
- *    ALL groups, hence, we must create a global role for all groups that are
- *    using default roles and permissions (og_roles_permissions is FALSE).
- * 2. This is a new "custom" og role (gid is not 0), which means it will only
- *    apply to the group specified, in this case just create the global role.
+ * Implements hook_og_role_insert().
  */
 function og_global_roles_og_role_insert($og_role) {
-
-  // if this is a "default" role EFQ for all groups using role defaults
+  // This needs to create the corresponding global role(s) for this role, there
+  // are two scenarios:
+  // 1. This is a new "default" og role (gid is 0), which means it will apply to
+  // ALL groups, hence, we must create a global role for all groups that are
+  // using default roles and permissions (og_roles_permissions is FALSE).
+  // 2. This is a new "custom" og role (gid is not 0), which means it will only
+  // apply to the group specified, in this case just create the global role.
+  //
+  // If this is a "default" role EFQ for all groups using role defaults.
   if ((int) $og_role->gid === 0) {
     $efq = new EntityFieldQuery();
     $groups = $efq->entityCondition('entity_type', $og_role->group_type)
@@ -26,32 +29,31 @@ function og_global_roles_og_role_insert($og_role) {
       ->fieldCondition('og_roles_permissions', 'value', FALSE)
       ->execute();
 
-    // iterate over groups adding roles
+    // Iterate over groups adding roles.
     foreach ($groups[$og_role->group_type] as $gid => $stub) {
       og_global_roles_create_global_role($og_role, $gid);
     }
 
-  // otherwise just create a new global role
-  } else {
+    // Otherwise just create a new global role.
+  }
+  else {
     og_global_roles_create_global_role($og_role);
   }
 }
 
 /**
- * Implements hook_og_role_delete()
- *
- * This needs to delete the corresponding global role(s) for this role, there
- * are two scenarios:
- *
- * 1. This is a "default" og role (gid is 0), which means it will apply to ALL
- *    groups, hence, we must delete the global role for all groups that are
- *    using default roles and permissions (og_roles_permissions is FALSE).
- * 2. This is a "custom" og role (gid is not 0), which means it will only apply
- *    to the group specified, in this case just delete the global role.
+ * Implements hook_og_role_delete().
  */
 function og_global_roles_og_role_delete($og_role) {
-
-  // if this is a "default" role EFQ for all groups using role defaults
+  // This needs to delete the corresponding global role(s) for this role, there
+  // are two scenarios:
+  // 1. This is a "default" og role (gid is 0), which means it will apply to ALL
+  // groups, hence, we must delete the global role for all groups that are using
+  // default roles and permissions (og_roles_permissions is FALSE).
+  // 2. This is a "custom" og role (gid is not 0), which means it will only
+  // apply to the group specified, in this case just delete the global role.
+  //
+  // If this is a "default" role EFQ for all groups using role defaults.
   if ((int) $og_role->gid === 0) {
     $efq = new EntityFieldQuery();
     $groups = $efq->entityCondition('entity_type', $og_role->group_type)
@@ -61,29 +63,29 @@ function og_global_roles_og_role_delete($og_role) {
       ->fieldCondition('og_roles_permissions', 'value', FALSE)
       ->execute();
 
-    // iterate over stubs and delete any roles created for it
+    // Iterate over stubs and delete any roles created for it.
     foreach ($groups[$og_role->group_type] as $gid => $stub) {
       og_global_roles_delete_global_role($og_role, $gid);
     }
 
-  // otherwise just delete the global role
-  } else {
+    // Otherwise just delete the global role.
+  }
+  else {
     og_global_roles_delete_global_role($og_role);
   }
 }
 
 /**
- * Implements hook_og_membership_insert()
- *
- * This function might need to grant the "member" role to a user, depending on
- * the value of the "state" value for this membership.
+ * Implements hook_og_membership_insert().
  */
 function og_global_roles_og_membership_insert(OgMembership $og_membership) {
-
-  // wrap the entity
+  // This function might need to grant the "member" role to a user, depending on
+  // the value of the "state" value for this membership.
+  //
+  // Wrap the entity.
   $wrapper = entity_metadata_wrapper('og_membership', $og_membership);
 
-  // save some typing
+  // Save some typing.
   list($group_type, $group_bundle, $gid, $uid) = array(
     $wrapper->group->type(),
     $wrapper->group->getBundle(),
@@ -91,40 +93,39 @@ function og_global_roles_og_membership_insert(OgMembership $og_membership) {
     $wrapper->entity->getIdentifier(),
   );
 
-  // check if this membership is active
+  // Check if this membership is active.
   if ($wrapper->state->value() == OG_STATE_ACTIVE) {
-    // determine rids for member and non-member roles
+    // Determine rids for member and non-member roles.
     $og_roles = og_roles($group_type, $group_bundle, $gid);
     $member_rid = array_search('member', $og_roles);
     $non_member_rid = array_search('non-member', $og_roles);
 
-    // if this is a new group AND membership there will be no roles yet, they
-    // will be created later in the process
+    // If this is a new group AND membership there will be no roles yet, they
+    // will be created later in the process.
     if (count($og_roles) > 0) {
-      // grant member and revoke non-member
+      // Grant member and revoke non-member.
       og_global_roles_og_role_grant($group_type, $gid, $uid, $member_rid);
-      og_global_roles_og_role_revoke($group_type, $gid, $uid, $non_member_rid, true);
+      og_global_roles_og_role_revoke($group_type, $gid, $uid, $non_member_rid, TRUE);
     }
 
   }
 }
 
 /**
- * Implements hook_og_membership_update()
- *
- * This function needs to track any changes to the "state" field and
- * grant/revoke member and non-member roles accordingly.
- *
- * NOTE: This revokes all other roles explicitly so that the global roles don't
- * persist and cause access issues.
+ * Implements hook_og_membership_update().
  */
- function og_global_roles_og_membership_update(OgMembership $og_membership) {
-
-  // wrap the entity and original entity
+function og_global_roles_og_membership_update(OgMembership $og_membership) {
+  // This function needs to track any changes to the "state" field and grant /
+  // revoke member and non-member roles accordingly.
+  //
+  // NOTE: This revokes all other roles explicitly so that the global roles
+  // don't persist and cause access issues.
+  //
+  // Wrap the entity and original entity.
   $wrapper = entity_metadata_wrapper('og_membership', $og_membership);
   $original_wrapper = entity_metadata_wrapper('og_membership', $og_membership->original);
 
-  // save some typing
+  // Save some typing.
   list($group_type, $group_bundle, $gid, $uid) = array(
     $wrapper->group->type(),
     $wrapper->group->getBundle(),
@@ -132,24 +133,25 @@ function og_global_roles_og_membership_insert(OgMembership $og_membership) {
     $wrapper->entity->getIdentifier(),
   );
 
-  // see if anything is changing here
+  // See if anything is changing here.
   if ($wrapper->state->value() !== $original_wrapper->state->value()) {
-    // determine rids for member and non-member roles
+    // Determine rids for member and non-member roles.
     $og_roles = og_roles($group_type, $group_bundle, $gid);
     $member_rid = array_search('member', $og_roles);
     $non_member_rid = array_search('non-member', $og_roles);
 
-    // check if this membership is active
+    // Check if this membership is active.
     if ($wrapper->state->value() == OG_STATE_ACTIVE) {
-      // grant member and revoke non-member
+      // Grant member and revoke non-member.
       og_global_roles_og_role_grant($group_type, $gid, $uid, $member_rid);
-      og_global_roles_og_role_revoke($group_type, $gid, $uid, $non_member_rid, true);
-    } else {
-      // grant non-member and revoke member
+      og_global_roles_og_role_revoke($group_type, $gid, $uid, $non_member_rid, TRUE);
+    }
+    else {
+      // Grant non-member and revoke member.
       og_global_roles_og_role_grant($group_type, $gid, $uid, $non_member_rid);
-      og_global_roles_og_role_revoke($group_type, $gid, $uid, $member_rid, true);
+      og_global_roles_og_role_revoke($group_type, $gid, $uid, $member_rid, TRUE);
 
-      // revoke all other roles as well
+      // Revoke all other roles as well.
       foreach ($og_roles as $rid => $name) {
         if ($name != 'member' && $name != 'non-member') {
           og_role_revoke($group_type, $gid, $uid, $rid);
@@ -160,18 +162,17 @@ function og_global_roles_og_membership_insert(OgMembership $og_membership) {
 }
 
 /**
- * Implements hook_og_membership_delete()
- *
- * NOTE: You can't call anything that might invoke user_save (ie, the role
- * grant/revoke functions) here, so we are updating these manually in the
- * database
+ * Implements hook_og_membership_delete().
  */
 function og_global_roles_og_membership_delete(OgMembership $og_membership) {
-
-  // wrap the entity
+  // NOTE: You can't call anything that might invoke user_save (ie, the role
+  // grant/revoke functions) here, so we are updating these manually in the
+  // database.
+  //
+  // Wrap the entity.
   $wrapper = entity_metadata_wrapper('og_membership', $og_membership);
 
-  // save some typing
+  // Save some typing.
   list($group_type, $group_bundle, $gid, $uid) = array(
     $wrapper->group->type(),
     $wrapper->group->getBundle(),
@@ -182,23 +183,23 @@ function og_global_roles_og_membership_delete(OgMembership $og_membership) {
   $og_roles = og_roles($group_type, $group_bundle, $gid);
   $non_member_rid = array_search('non-member', $og_roles);
 
-  // explicitly revoke all global group roles except "non-member"
+  // Explicitly revoke all global group roles except "non-member".
   foreach ($og_roles as $rid => $name) {
     if ($name == 'non-member') {
       og_global_roles_og_role_grant($group_type, $gid, $uid, $non_member_rid);
-    } else {
-      og_global_roles_og_role_revoke($group_type, $gid, $uid, $rid, true);
+    }
+    else {
+      og_global_roles_og_role_revoke($group_type, $gid, $uid, $rid, TRUE);
     }
   }
 }
 
 /**
- * Implements hook_og_role_grant()
- *
- * Grants the appropriate global role as well.  This uses a direct database
- * query as
+ * Implements hook_og_role_grant().
  */
 function og_global_roles_og_role_grant($entity_type, $gid, $uid, $rid) {
+  // Grants the appropriate global role as well.  This uses a direct database
+  // query as.
   if ($global_role = _og_global_roles_get_global_role(og_role_load($rid), $gid)) {
     try {
       db_insert('users_roles')
@@ -206,16 +207,18 @@ function og_global_roles_og_role_grant($entity_type, $gid, $uid, $rid) {
           'uid' => $uid,
           'rid' => $global_role->rid,
         ))->execute();
-    } catch (PDOException $e) {}
+    }
+    catch (PDOException $e) {
+
+    }
   }
 }
 
 /**
- * Implements hook_og_role_revoke()
- *
- * Revokes the appropriate global role as well.
+ * Implements hook_og_role_revoke().
  */
-function og_global_roles_og_role_revoke($entity_type, $gid, $uid, $rid, $force = false) {
+function og_global_roles_og_role_revoke($entity_type, $gid, $uid, $rid, $force = FALSE) {
+  // Revokes the appropriate global role as well.
   if ($global_role = _og_global_roles_get_global_role(og_role_load($rid), $gid)) {
     $og_role = og_role_load($rid);
 
@@ -235,20 +238,20 @@ function og_global_roles_og_role_revoke($entity_type, $gid, $uid, $rid, $force =
  * Implements hook_entity_insert().
  */
 function og_global_roles_entity_insert($entity, $type) {
-  // wrap the entity
+  // Wrap the entity.
   $wrapper = entity_metadata_wrapper($type, $entity);
 
-  // check if this is a group
+  // Check if this is a group.
   if (isset($wrapper->group_group)
     && $wrapper->group_group->value() === TRUE
     && isset($wrapper->og_roles_permissions)) {
 
-    // if the og permissions field is not set or is set to use the defaults we
+    // If the og permissions field is not set or is set to use the defaults we
     // create global roles for all default og roles, global roles will be
-    // handled by hook_og_role_insert otherwise
+    // handled by hook_og_role_insert otherwise.
     if ($wrapper->og_roles_permissions->value() === FALSE) {
 
-      // get default roles
+      // Get default roles.
       $og_roles = db_select('og_role', 'ogr')
         ->fields('ogr')
         ->condition('gid', 0)
@@ -261,31 +264,31 @@ function og_global_roles_entity_insert($entity, $type) {
       }
     }
 
-    // save some typing
+    // Save some typing.
     list($group_type, $group_bundle, $gid) = array(
       $wrapper->type(),
       $wrapper->getBundle(),
       $wrapper->getIdentifier(),
     );
 
-    // get og roles for this group
+    // Get og roles for this group.
     $og_roles = og_roles($group_type, $group_bundle, $gid);
     $member_rid = array_search('member', $og_roles);
     $non_member_rid = array_search('non-member', $og_roles);
 
-    // get users that aren't the author of this group
+    // Get users that aren't the author of this group.
     $result = db_select('users', 'u')
       ->condition('u.uid', $entity->uid, '!=')
       ->condition('u.uid', 0, '>')
       ->fields('u', array('uid'))
       ->execute();
 
-    // grant "non-member" to all users not a member of this group
+    // Grant "non-member" to all users not a member of this group.
     foreach ($result as $user) {
       og_global_roles_og_role_grant($group_type, $gid, $user->uid, $non_member_rid);
     }
 
-    // grant "member" to author of this group
+    // Grant "member" to author of this group.
     og_global_roles_og_role_grant($group_type, $gid, $entity->uid, $member_rid);
   }
 }
@@ -294,22 +297,22 @@ function og_global_roles_entity_insert($entity, $type) {
  * Implements hook_entity_update().
  */
 function og_global_roles_entity_update($entity, $type) {
-  // wrap the entity and original entity
+  // Wrap the entity and original entity.
   $wrapper = entity_metadata_wrapper($type, $entity);
 
-  // check if this is a group
+  // Check if this is a group.
   if (isset($wrapper->group_group)
     && $wrapper->group_group->value() === TRUE
     && isset($wrapper->og_roles_permissions)) {
 
     $original_wrapper = entity_metadata_wrapper($type, $entity->original);
 
-    // if there is a mismatch and this is going from overridden to default
-    // we need to create the new default roles
+    // If there is a mismatch and this is going from overridden to default
+    // we need to create the new default roles.
     if ($wrapper->og_roles_permissions->value() !== $original_wrapper->og_roles_permissions->value()
       && $wrapper->og_roles_permissions->value() === FALSE) {
 
-      // get default roles
+      // Get default roles.
       $og_roles = db_select('og_role', 'ogr')
         ->fields('ogr')
         ->condition('gid', 0)
@@ -321,12 +324,13 @@ function og_global_roles_entity_update($entity, $type) {
         og_global_roles_create_global_role($og_role, $wrapper->getIdentifier());
       }
 
-    // if there is a mismatch and this is going from default to overridden
-    // we need to delete the old default roles
-    } else if ($wrapper->og_roles_permissions->value() !== $original_wrapper->og_roles_permissions->value()
+      // If there is a mismatch and this is going from default to overridden
+      // we need to delete the old default roles.
+    }
+    elseif ($wrapper->og_roles_permissions->value() !== $original_wrapper->og_roles_permissions->value()
       && $wrapper->og_roles_permissions->value() === TRUE) {
 
-      // get default roles
+      // Get default roles.
       $og_roles = db_select('og_role', 'ogr')
         ->fields('ogr')
         ->condition('gid', 0)
@@ -342,20 +346,20 @@ function og_global_roles_entity_update($entity, $type) {
 }
 
 /**
- * Implementation of hook_entity_delete().
+ * Implements hook_entity_delete().
  */
 function og_global_roles_entity_delete($entity, $type) {
-  // wrap the entity and original entity
+  // Wrap the entity and original entity.
   $wrapper = entity_metadata_wrapper($type, $entity);
 
-  // check if this is a group
+  // Check if this is a group.
   if (isset($wrapper->group_group)
     && $wrapper->group_group->value() === TRUE
     && isset($wrapper->og_roles_permissions)) {
 
     if ($wrapper->og_roles_permissions->value() === FALSE) {
 
-      // get default roles
+      // Get default roles.
       $og_roles = db_select('og_role', 'ogr')
         ->fields('ogr')
         ->condition('gid', 0)
@@ -372,38 +376,43 @@ function og_global_roles_entity_delete($entity, $type) {
 
 /**
  * Implements hook_form_alter().
- *
- * Removes global roles from admin forms wherever they might exist.
  */
 function og_global_roles_form_alter(&$form, &$form_state, $form_id) {
+  // Removes global roles from admin forms wherever they might exist.
   switch ($form_id) {
     case 'user_admin_permissions':
       _og_global_roles_filter_by_rid($form['role_names']);
       _og_global_roles_filter_by_rid($form['role_names']['#value']);
       _og_global_roles_filter_by_rid($form['checkboxes']);
       break;
+
     case 'user_admin_roles':
       _og_global_roles_filter_by_rid($form['roles']);
       break;
+
     case 'islandora_workflow_rest_reports_form':
       _og_global_roles_filter_select($form['workflow_reports_fs']['workflow_permissions_fs']['edit_roles']['#options']);
       _og_global_roles_filter_select($form['workflow_reports_fs']['workflow_permissions_fs']['view_roles']['#options']);
       break;
+
     case 'islandora_solr_admin_settings_result_fields':
     case 'islandora_solr_admin_settings_sort_fields':
     case 'islandora_solr_admin_settings_facet_fields':
     case 'islandora_solr_admin_settings_search_fields':
       _og_global_roles_filter_by_rid($form['options']['permissions_fieldset']['permissions']['#options']);
       break;
+
     case 'user_profile_form':
     case 'user_register_form':
       _og_global_roles_filter_by_rid($form['account']['roles']['#options']);
       break;
+
     case 'views_exposed_form':
       if (isset($form['rid'])) {
         _og_global_roles_filter_by_rid($form['rid']['#options']);
       }
       break;
+
     case 'views_form_admin_views_user_system_1':
       if (isset($form['add_roles'])) {
         _og_global_roles_filter_by_rid($form['add_roles']['#options']);
@@ -418,35 +427,36 @@ function og_global_roles_form_alter(&$form, &$form_state, $form_id) {
 /**
  * Creates a new global role for the given og role.
  *
- * @param $og_role The fully-loaded og role.
- * @param $gid     The group id (as group roles sometimes have gid "0" for
- * default roles)
+ * @param object $og_role
+ *   The fully-loaded og role.
+ * @param mixed $gid
+ *   The group id (as group roles sometimes have gid "0" for default roles).
  *
- * @return The new global role.
+ * @return object
+ *   The new global role.
  */
 function og_global_roles_create_global_role($og_role, $gid = NULL) {
   if ($gid === NULL) {
     $gid = $og_role->gid;
   }
 
-  $role = new stdClass;
+  $role = new stdClass();
   $role->name = substr($og_role->group_type . ':' . $gid . ':' . $og_role->rid . ':' . $og_role->name, 0, 64);
   user_role_save($role);
 
   db_insert(OG_GLOBAL_ROLES_TABLE)
     ->fields(array(
-    'group_type' => $og_role->group_type,
-    'gid' => $gid,
-    'og_rid' => $og_role->rid,
-    'global_rid' => $role->rid,
-  ))->execute();
+      'group_type' => $og_role->group_type,
+      'gid' => $gid,
+      'og_rid' => $og_role->rid,
+      'global_rid' => $role->rid,
+    ))->execute();
 
   return $role;
 }
 
 /**
- * Deletes a global role managed by this module and removes the record from the
- * map table.
+ * Delete a global role managed by this module & remove record from map table.
  */
 function og_global_roles_delete_global_role($og_role, $gid = NULL) {
   if ($gid === NULL) {
@@ -465,11 +475,10 @@ function og_global_roles_delete_global_role($og_role, $gid = NULL) {
 }
 
 /**
- * Implementation of hook_views_pre_render().
- *
- * Filter roles from admin view for people tab (admin views only).
+ * Implements hook_views_pre_render().
  */
 function og_global_roles_views_pre_render(&$view) {
+  // Filter roles from admin view for people tab (admin views only).
   if ($view->name == 'admin_views_user' && isset($view->field['rid']->items)) {
     foreach ($view->field['rid']->items as &$item) {
       _og_global_roles_filter_by_rid($item);
@@ -480,7 +489,7 @@ function og_global_roles_views_pre_render(&$view) {
 /**
  * Helper function that looks up a global role based on a group role.
  */
-function _og_global_roles_get_global_role($og_role, $gid = null) {
+function _og_global_roles_get_global_role($og_role, $gid = NULL) {
   if ($gid === NULL) {
     $gid = $og_role->gid;
   }
@@ -493,10 +502,11 @@ function _og_global_roles_get_global_role($og_role, $gid = null) {
     ->execute()
     ->fetchCol();
 
-  // something is pretty wrong if the count is more than one, but be certain
+  // Something is pretty wrong if the count is more than one, but be certain.
   if (count($result) == 0 || count($result) > 1) {
     return FALSE;
-  } else {
+  }
+  else {
     return user_role_load((int) array_shift($result));
   }
 }

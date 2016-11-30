@@ -1,6 +1,11 @@
 <?php
 
 /**
+ * @file
+ * Install, update, uninstall the og_global_roles module.
+ */
+
+/**
  * Implements hook_schema().
  */
 function og_global_roles_schema() {
@@ -10,23 +15,23 @@ function og_global_roles_schema() {
       'group_type' => array(
         'type' => 'varchar',
         'length' => 32,
-        'not null' => true,
+        'not null' => TRUE,
       ),
       'gid' => array(
         'description' => '',
         'type' => 'int',
-        'unsigned' => true,
-        'not null' => true,
+        'unsigned' => TRUE,
+        'not null' => TRUE,
       ),
       'og_rid' => array(
         'description' => '',
         'type' => 'int',
-        'unsigned' => true,
+        'unsigned' => TRUE,
       ),
       'global_rid' => array(
         'description' => '',
         'type' => 'int',
-        'unsigned' => true,
+        'unsigned' => TRUE,
       ),
     ),
     'indexes' => array(
@@ -35,7 +40,7 @@ function og_global_roles_schema() {
       'global_rid' => array('global_rid'),
     ),
     'unique keys' => array(
-      'group_type_gid_rid' => array('group_type', 'gid', 'og_rid', 'global_rid')
+      'group_type_gid_rid' => array('group_type', 'gid', 'og_rid', 'global_rid'),
     ),
   );
   return $schema;
